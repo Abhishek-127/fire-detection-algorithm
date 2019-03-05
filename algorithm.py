@@ -134,3 +134,97 @@ def show_3d_plot(img, hsv_img):
     axis.set_zlabel("Value")
     plt.show()
 
+def sobel_function(image):
+    window_name = ('Sobel Demo - Simple Edge Detector')
+    scale = 1
+    delta = 0
+    ddepth = cv2.CV_16S
+    
+    
+    src = cv2.GaussianBlur(image, (3, 3), 0)
+    
+    
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    
+    grad_x = cv2.Sobel(gray, ddepth, 1, 0, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+    # Gradient-Y
+    # grad_y = cv2.Scharr(gray,ddepth,0,1)
+    grad_y = cv2.Sobel(gray, ddepth, 0, 1, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+    
+    
+    abs_grad_x = cv2.convertScaleAbs(grad_x)
+    abs_grad_y = cv2.convertScaleAbs(grad_y)
+    
+    print(abs_grad_x)
+    print(abs_grad_y)
+    grad = cv2.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
+    
+    
+    cv2.imshow(window_name, grad)
+    cv2.waitKey(0)
+
+def detect_fire(image):
+    
+    hsv_color1 = np.asarray([0, 0, 255])   # white!
+    hsv_color2 = np.asarray([[30, 255, 255]]) # orange ish color
+    blur = cv2.GaussianBlur(image, (21, 21), 0)
+    hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+
+    lower = [18, 50, 50]
+    upper = [35, 255, 255]
+    lower = np.array(lower, dtype="uint8")
+    upper = np.array(upper, dtype="uint8")
+
+    mask = cv2.inRange(hsv, lower, upper)
+    
+    plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
+    plt.show()
+    result = cv2.bitwise_and(image, image, mask=mask)
+    plt.imshow(result)
+    plt.show()
+ 
+    output = cv2.bitwise_and(image, hsv, mask=mask)
+    # cv2.imshow("output", output)
+    # plt.show()
+    # plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
+    # plt.show()
+    # result = cv2.bitwise_and(img[3], img[3], mask=mask)
+    # plt.imshow(result)
+    # plt.show()
+    red = cv2.countNonZero(mask)
+    if red > 11000:
+        print("Fire detected")
+    else:
+        print("No fire")
+
+
+    print(red)
+
+    
+
+def main():
+    if len(sys.argv) < 1:
+        print ('Not enough parameters')
+        print ('Usage:\nmorph_lines_detection.py < path_to_image >')
+        return -1
+    
+    img_name = sys.argv[1]
+
+    img2 = imread_colour(img_name)
+
+    img = cv2.imread(img_name)
+    hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
+ 
+    # ycbcr_image = rgb_to_ycbcr(img2[3])
+    
+
+    detect_fire(img)
+    sobel_function(img)
+    spectrum = max_rgb_filter(img)
+
+
+    # show_3d_plot(img[3], hsv_img)
+
+if __name__ == '__main__':
+    main()
