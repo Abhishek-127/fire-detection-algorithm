@@ -211,14 +211,83 @@ def rgb_to_ycbcr(img):
 
 
 def main():
-    start = time.time()
     img_name = sys.argv[1]
 
     img = imread_colour(img_name)
-    imwrite_gray(img_name, img[0])
-    new_image = rgb_to_ycbcr(img)
-    cv2.imshow('image',new_image)
-    cv2.waitKey(0)
+    # img = cv2.imread(img_name)
+    hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
+    # imwrite_gray(img_name, img[0])
+    # new_image = rgb_to_ycbcr(img)
+    
+    # # plot_IMGhist(img[0])
+    # # plot_IMGhist(new_image)
+    # cv2.imshow('image',new_image)
+    # cv2.waitKey(0)
+    # cv2.imshow('hsv image', hsv_img)
+    # cv2.waitKey(0)
+
+    light_orange = (0, 0, 225)
+    dark_orange = (255, 88, 35)
+
+    lo_square = np.full((10, 10, 3), light_orange, dtype=np.uint8) / 255.0
+    do_square = np.full((10, 10, 3), dark_orange, dtype=np.uint8) / 255.0
+    plt.subplot(1, 2, 1)
+    plt.imshow(hsv_to_rgb(do_square))
+    plt.subplot(1, 2, 2)
+    plt.imshow(hsv_to_rgb(lo_square))
+    plt.show()
+
+    mask = cv2.inRange(hsv_img, light_orange, dark_orange)
+    result = cv2.bitwise_and(img[3], img[3], mask=mask)
+
+    # plt.subplot(1, 2, 1)
+    # plt.imshow(mask, cmap="gray")
+    # plt.subplot(1, 2, 2)
+    # plt.imshow(result)
+    # plt.show()
+    hsv_color1 = np.asarray([0, 0, 255])   # white!
+    hsv_color2 = np.asarray([[30, 255, 255]])   # yellow! note the order
+
+    blur = cv2.GaussianBlur(cv2.imread(img_name), (21, 21), 0)
+    hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+
+    lower = [18, 50, 50]
+    upper = [35, 255, 255]
+    lower = np.array(lower, dtype="uint8")
+    upper = np.array(upper, dtype="uint8")
+
+    mask = cv2.inRange(hsv_img, lower, upper)
+    mask = cv2.inRange(hsv, lower, upper)
+ 
+ 
+    output = cv2.bitwise_and(cv2.imread(img_name), hsv, mask=mask)
+    # cv2.imshow("output", output)
+    # plt.show()
+    # plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
+    # plt.show()
+    # result = cv2.bitwise_and(img[3], img[3], mask=mask)
+    # plt.imshow(result)
+    # plt.show()
+    red = cv2.countNonZero(mask)
+    if red > 11000:
+        print("Fire detected")
+    else:
+        print("No fire")
+
+
+    print(red)
+
+
+    plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
+    plt.show()
+    result = cv2.bitwise_and(img[3], img[3], mask=mask)
+    plt.imshow(result)
+    plt.show()
+
+    spectrum = max_rgb_filter(cv2.imread(img_name))
+
+
+    # show_3d_plot(img[3], hsv_img)
     
 
     
@@ -226,4 +295,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
