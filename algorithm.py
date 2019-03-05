@@ -60,8 +60,8 @@ def imwrite_gray(fname,img):
 # Function to convert an image to YcbCr spectrum using opencv
 # @param img_name[String] Name of the image
 # @return imgYCC [2D array] an array of the image in ycbcr spectrum
-def rgcYcbcr(img_name):
-    img = cv2.imread(img_name)
+def rgcYcbcr(image):
+    img = image.copy()
     imgYCC = cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB)
     cv2.imshow('my_image', imgYCC)
     cv2.waitKey(0)
@@ -155,24 +155,36 @@ def sobel_function(image):
     
     abs_grad_x = cv2.convertScaleAbs(grad_x)
     abs_grad_y = cv2.convertScaleAbs(grad_y)
-    
-    print(abs_grad_x)
-    print(abs_grad_y)
+
     grad = cv2.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
     
     
     cv2.imshow(window_name, grad)
     cv2.waitKey(0)
 
-def detect_fire(image):
+def detect_fire(image, img_mode = 'hsv'):
     
     hsv_color1 = np.asarray([0, 0, 255])   # white!
     hsv_color2 = np.asarray([[30, 255, 255]]) # orange ish color
     blur = cv2.GaussianBlur(image, (21, 21), 0)
-    hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+    # hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+    # blur=image
 
-    lower = [18, 50, 50]
-    upper = [35, 255, 255]
+    # lower = [18, 50, 50]
+    # upper = [35, 255, 255]
+    if img_mode == 'hsv':
+        # lower = [18, 50, 50]
+        # upper = [35, 255, 255]
+        lower = [20, 35, 220]
+        upper = [35, 255, 255]
+        hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+    else:
+        # lower = [116, 50, 50]
+        # upper = [130, 130, 130]
+        lower = [100, 50, 128]
+        upper = [255, 128, 200]
+        hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2YCR_CB)
+    
     lower = np.array(lower, dtype="uint8")
     upper = np.array(upper, dtype="uint8")
 
@@ -200,6 +212,10 @@ def detect_fire(image):
 
 
     print(red)
+    print('Image size: ', image.size)
+    im_size = float(image.size) * 0.25
+    ratio = float(cv2.countNonZero(mask))/float(im_size)
+    print('pixel percentage:', np.round(ratio*100, 2))
 
     
 
@@ -216,10 +232,12 @@ def main():
     img = cv2.imread(img_name)
     hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
  
-    # ycbcr_image = rgb_to_ycbcr(img2[3])
+    ycbcr_image = rgcYcbcr(img)
+
     
 
-    detect_fire(img)
+    detect_fire(hsv_img)
+    detect_fire(ycbcr_image, 'ycc')
     # sobel_function(img)
     # spectrum = max_rgb_filter(img)
 
