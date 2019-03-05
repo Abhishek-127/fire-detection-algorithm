@@ -220,11 +220,11 @@ def main():
     
 
     detect_fire(img)
-    sobel_function(img)
-    spectrum = max_rgb_filter(img)
+    # sobel_function(img)
+    # spectrum = max_rgb_filter(img)
 
 
-    # show_3d_plot(img[3], hsv_img)
+    # show_3d_plot(img, hsv_img)
 
 if __name__ == '__main__':
     main()
