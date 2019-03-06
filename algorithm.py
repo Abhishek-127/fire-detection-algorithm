@@ -175,8 +175,6 @@ def detect_fire(image, img_mode = 'hsv'):
     hsv_color1 = np.asarray([0, 0, 255])   # white!
     hsv_color2 = np.asarray([[30, 255, 255]]) # orange ish color
     blur = cv2.GaussianBlur(image, (21, 21), 0)
-    # hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
-    # blur=image
 
     # lower = [18, 50, 50]
     # upper = [35, 255, 255]
@@ -186,12 +184,12 @@ def detect_fire(image, img_mode = 'hsv'):
         lower = [20, 35, 100]
         upper = [35, 255, 255]
         hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+        # hsv = image
     else:
-        # lower = [116, 50, 50]
-        # upper = [130, 130, 130]
-        lower = [100, 50, 128]
-        upper = [255, 128, 200]
-        hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2YCR_CB)
+        lower = [68, 67, 66]
+        upper = [202, 202, 255]
+        # hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2YCR_CB)
+        hsv = image
     
     lower = np.array(lower, dtype="uint8")
     upper = np.array(upper, dtype="uint8")
@@ -225,6 +223,28 @@ def get_image_size(image):
     size = width * height
     print(size)
     return size
+
+# gets the min and max values for the spectrum
+def retrieve_min_max_values(image):
+    # img = image.copy()
+    # lower_white = np.array([220, 220, 220], dtype=np.uint8)
+    # upper_white = np.array([255, 255, 255], dtype=np.uint8)
+    # mask = cv2.inRange(img, lower_white, upper_white)  # could also use threshold
+    # result = cv2.bitwise_not(img, image, mask=mask)
+    # image = result
+
+    YMax = np.max(image[0])
+    YMin = np.min(image[0])
+    cbMin = np.min(image[1])
+    cbMax = np.max(image[1])
+    crMin = np.min(image[2])
+    crMax = np.max(image[2])
+    print('Y Min = ', YMin)
+    print('YMax = ', YMax)
+    print('Cb Min = ', cbMin)
+    print('cb Max = ', cbMax)
+    print('cr Min = ', crMin)
+    print('cr Max = ', crMax)
     
 
 def main():
@@ -238,8 +258,9 @@ def main():
     img2 = imread_colour(img_name)
 
     img = cv2.imread(img_name)
-    max = np.max(img[0])
-    print(max)
+    retrieve_min_max_values(cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB))
+    # max = np.max(img[0])
+    # print(max)
     get_image_size(img)
     lab_image = rgb_to_lab(img.copy())
     hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
@@ -250,6 +271,8 @@ def main():
 
     detect_fire(hsv_img)
     detect_fire(ycbcr_image, 'ycc')
+
+
     # sobel_function(img)
     # spectrum = max_rgb_filter(img)
 
