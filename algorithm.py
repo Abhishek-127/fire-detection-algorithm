@@ -24,6 +24,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib import colors
 from matplotlib.colors import hsv_to_rgb
+from skimage import io, color
 
 # Function to read in a gray scale image and return a 2d array
 # @param fname[String] The name of the image
@@ -77,6 +78,13 @@ def rgb_to_ycbcr(img):
     ycbcr = img[3].dot(ycbcr_matrix.T)
     ycbcr[:,:,[1,2]] += 128
     return np.uint8(ycbcr)
+
+def rgb_to_lab(image):
+    lab_image = color.rgb2lab(image)
+    # cv2.imshow('my_image', lab_image)
+    # cv2.waitKey(0)
+    
+    return lab_image
 
 def plot_IMGhist(img,nbr_bins=256):    
     # the histogram of the data
@@ -175,7 +183,7 @@ def detect_fire(image, img_mode = 'hsv'):
     if img_mode == 'hsv':
         # lower = [18, 50, 50]
         # upper = [35, 255, 255]
-        lower = [20, 35, 220]
+        lower = [20, 35, 100]
         upper = [35, 255, 255]
         hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
     else:
@@ -197,13 +205,7 @@ def detect_fire(image, img_mode = 'hsv'):
     plt.show()
  
     output = cv2.bitwise_and(image, hsv, mask=mask)
-    # cv2.imshow("output", output)
-    # plt.show()
-    # plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
-    # plt.show()
-    # result = cv2.bitwise_and(img[3], img[3], mask=mask)
-    # plt.imshow(result)
-    # plt.show()
+
     red = cv2.countNonZero(mask)
     if red > 11000:
         print("Fire detected")
@@ -212,11 +214,17 @@ def detect_fire(image, img_mode = 'hsv'):
 
 
     print(red)
-    print('Image size: ', image.size)
-    im_size = float(image.size) * 0.25
+
+    im_size = get_image_size(image)
     ratio = float(cv2.countNonZero(mask))/float(im_size)
     print('pixel percentage:', np.round(ratio*100, 2))
 
+def get_image_size(image):
+    height = np.size(image, 0)
+    width = np.size(image, 1)
+    size = width * height
+    print(size)
+    return size
     
 
 def main():
@@ -230,6 +238,10 @@ def main():
     img2 = imread_colour(img_name)
 
     img = cv2.imread(img_name)
+    max = np.max(img[0])
+    print(max)
+    get_image_size(img)
+    lab_image = rgb_to_lab(img.copy())
     hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
  
     ycbcr_image = rgcYcbcr(img)
