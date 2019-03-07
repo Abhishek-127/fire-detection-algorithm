@@ -86,6 +86,24 @@ def rgb_to_lab(image):
     
     return lab_image
 
+"""
+Helper function to display an image to the screen
+Will also save the image if you desire
+@param image, The image to be displayed
+@param image_name, [optional] the name to be displayed on the window
+@param save [Boolean] whether or not you wish to save the image
+@param saved_name [String] the name under which to store the image
+    @pre must contain a valid extension e.g. jpg
+"""
+def display_image(image, image_name = 'Output', save = False, saved_name = ''):
+    cv2.imshow(image_name, image)
+    cv2.waitKey(0)
+
+    if save == True:
+        cv2.imwrite(saved_name, image)
+
+
+
 def plot_IMGhist(img,nbr_bins=256):    
     # the histogram of the data
     plt.hist(img.flatten(),nbr_bins,(0,nbr_bins-1))
@@ -147,33 +165,48 @@ def sobel_function(image):
     scale = 1
     delta = 0
     ddepth = cv2.CV_16S
-    
-    
+     
     src = cv2.GaussianBlur(image, (3, 3), 0)
-    
-    
+     
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
     
     grad_x = cv2.Sobel(gray, ddepth, 1, 0, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
     # Gradient-Y
     # grad_y = cv2.Scharr(gray,ddepth,0,1)
     grad_y = cv2.Sobel(gray, ddepth, 0, 1, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
-    
-    
+
     abs_grad_x = cv2.convertScaleAbs(grad_x)
     abs_grad_y = cv2.convertScaleAbs(grad_y)
 
     grad = cv2.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
-    
-    
+        
     cv2.imshow(window_name, grad)
     cv2.waitKey(0)
 
+def detect_hsv_spectrum_fire(image):
+    blur = cv2.GaussianBlur(image, (21, 21), 0)
+    lower = [20, 35, 100]
+    upper = [35, 255, 255]
+    hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+
+    lower = np.array(lower, dtype="uint8")
+    upper = np.array(upper, dtype="uint8")
+
+    mask = cv2.inRange(hsv, lower, upper)
+    result = cv2.bitwise_and(image, image, mask=mask)
+
+    red = cv2.countNonZero(mask)
+
+    plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
+    plt.show()
+    result = cv2.bitwise_and(image, image, mask=mask)
+    plt.imshow(result)
+    plt.show()
+ 
+    output = cv2.bitwise_and(image, hsv, mask=mask)
+    display_image(output)
+
 def detect_fire(image, img_mode = 'hsv'):
-    
-    hsv_color1 = np.asarray([0, 0, 255])   # white!
-    hsv_color2 = np.asarray([[30, 255, 255]]) # orange ish color
     blur = cv2.GaussianBlur(image, (21, 21), 0)
 
     # lower = [18, 50, 50]
@@ -230,6 +263,27 @@ def get_image_size(image):
     print(size)
     return size
 
+"""
+Function to retrieve the mean of each color channel
+Also retireves the standard deviation of each channel
+This will help in the implementation of the algorithms
+@param ycrcb_image
+"""
+def retrieve_mean_ycc(ycrcb_image):
+    true_mean = cv2.mean(ycrcb_image)
+    print(true_mean)
+    Ymean = true_mean[0]
+    CrMean = true_mean[1]
+    CbMean = true_mean[2]
+
+    # getting the standard dev
+    means, stds = cv2.meanStdDev(ycrcb_image)
+    cr_std = stds[1][0]
+    print('mean chrominancer is ', cr_std)
+    print(stds)
+
+    return Ymean, CrMean, CbMean, cr_std
+
 def loop_pixels(image):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
     height = image.shape[0]
@@ -241,14 +295,12 @@ def loop_pixels(image):
     return image
     # return cv2.cvtColor(image, cv2.COLOR_YCR_CB2BGR)
 
-# gets the min and max values for the spectrum
+"""
+Small helper function that helps retrieve the min and max values
+from images. This will be used mainly to come up with benchmark values
+using pictures with only fire in them
+"""
 def retrieve_min_max_values(image):
-    # img = image.copy()
-    # lower_white = np.array([220, 220, 220], dtype=np.uint8)
-    # upper_white = np.array([255, 255, 255], dtype=np.uint8)
-    # mask = cv2.inRange(img, lower_white, upper_white)  # could also use threshold
-    # result = cv2.bitwise_not(img, image, mask=mask)
-    # image = result
 
     YMax = np.max(image[0])
     YMin = np.min(image[0])
@@ -275,12 +327,11 @@ def main():
     img2 = imread_colour(img_name)
 
     img = cv2.imread(img_name)
-    my_image = loop_pixels(img)
-    cv2.imwrite("Ena.jpg", my_image)
-    # cv2.imshow('lab_image', my_image)
-    # cv2.waitKey(0)
+    hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
+    detect_hsv_spectrum_fire(hsv_img)
+    # my_image = loop_pixels(img)
+
     # np.concat(1, 2)
-    return 0
 
     retrieve_min_max_values(cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB))
     lab_image = rgb_to_lab(img.copy())
@@ -288,16 +339,16 @@ def main():
     cv2.imshow('lab_image', lab_image)
     cv2.waitKey(0)
     # detect_fire(lab_image, 'lab')
-    hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
+    
  
     ycbcr_image = rgcYcbcr(img)
-    mean = np.mean(ycbcr_image[0])
+    mean = retrieve_mean_ycc(ycbcr_image)
     print('the mean is = ', mean)
 
     
 
-    detect_fire(hsv_img)
-    detect_fire(img, 'ycc')
+    # detect_fire(hsv_img)
+    # detect_fire(img, 'ycc')
     # sobel_function(img)
     # spectrum = max_rgb_filter(img)
 
