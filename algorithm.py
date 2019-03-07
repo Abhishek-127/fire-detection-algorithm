@@ -284,6 +284,80 @@ def retrieve_mean_ycc(ycrcb_image):
 
     return Ymean, CrMean, CbMean, cr_std
 
+"""
+Function that checks for the intensity of the y components as well as
+the intensity of the cb components.
+Only allow those regions with greater Y components than Cb
+Blackens the rest of the pixels
+@param image The image to be processed in the ycrcb spectrum
+@return R1_image processed image with only pixels that satisfy that rule
+"""
+def rule1(image):
+    R1_image = image.copy()
+    height = image.shape[0]
+    width = image.shape[1]
+
+    for x in range(0, height):
+        for y in range(0, width):
+            if(image[x, y][0] > image[x, y][2]):
+                R1_image[x, y] = image[x,y]
+            else:
+                R1_image[x,y] = [0, 0, 0]
+
+    display_image(R1_image)
+    return R1_image
+
+def rule2(image, overall_image):
+    R2_image = image.copy()
+    Ymean, crMean, c, s = retrieve_mean_ycc(R2_image)
+
+    height = image.shape[0]
+    width = image.shape[1]
+
+    for x in range(0, height):
+        for y in range(0, width):
+            if (image[x, y][0] > Ymean) and (image[x,y][1] > crMean):
+                R2_image[x, y] = image[x, y]
+            else:
+                R2_image[x, y] = [0, 0, 0]
+    display_image(R2_image)
+    return R2_image
+
+def rule3(image):
+    R3_image = image.copy()
+
+    height = image.shape[0]
+    width = image.shape[1]
+
+    for x in range(0, height):
+        for y in range(0, width):
+            if(image[x, y][2] >= image[x, y][0]) and (image[x,y][1] > image[x,y][1]):
+                R3_image[x, y] = image[x, y]
+            else:
+                R3_image[x, y] = [0, 0, 0]
+    display_image(R3_image)
+    return R3_image
+
+def rule4(image, input_image):
+    R4_image = image.copy()
+
+    Ymean, CrMean, CbMean, cr_std = retrieve_mean_ycc(input_image)
+    tau = 7.4
+
+    height = image.shape[0]
+    width = image.shape[1]
+    M = cv2.mean(image)
+    Cr = M[1]
+
+    for x in range(0, height):
+        for y in range(0, width):
+            if(Cr < (tau * cr_std)):
+                R4_image[x, y] = image[x, y]
+            else:
+                R4_image[x, y] = [0, 0, 0]
+    display_image(R4_image)
+    return R4_image
+
 def loop_pixels(image):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
     height = image.shape[0]
@@ -293,7 +367,6 @@ def loop_pixels(image):
             if (image[x,y][0] < image[x,y][2]):
                 image[x,y] = (0,0,0)
     return image
-    # return cv2.cvtColor(image, cv2.COLOR_YCR_CB2BGR)
 
 """
 Small helper function that helps retrieve the min and max values
@@ -344,7 +417,13 @@ def main():
     ycbcr_image = rgcYcbcr(img)
     mean = retrieve_mean_ycc(ycbcr_image)
     print('the mean is = ', mean)
-
+    R1 = rule1(ycbcr_image)
+    R2 = rule2(R1, ycbcr_image)
+    R3 = rule3(ycbcr_image)
+    R4 = rule4(R3, ycbcr_image)
+    final = cv2.add(R2, R4)
+    display_image(final)
+    return 0
     
 
     # detect_fire(hsv_img)
