@@ -185,11 +185,17 @@ def detect_fire(image, img_mode = 'hsv'):
         upper = [35, 255, 255]
         hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
         # hsv = image
+    elif img_mode == 'lab':
+        lower = [-40, -40, -40]
+        upper = [80, 84, 90]
+        # hsv = image
+        #hsv = cv2.cvtColor(blur, cv2.)
     else:
-        lower = [68, 67, 66]
-        upper = [202, 202, 255]
-        # hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2YCR_CB)
-        hsv = image
+        # lower = [68, 67, 66]
+        # upper = [202, 202, 255]
+        lower = [50, 50, 50]
+        upper = [254, 253, 253]
+        hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2YCR_CB)
     
     lower = np.array(lower, dtype="uint8")
     upper = np.array(upper, dtype="uint8")
@@ -223,6 +229,17 @@ def get_image_size(image):
     size = width * height
     print(size)
     return size
+
+def loop_pixels(image):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
+    height = image.shape[0]
+    width = image.shape[1]
+    for x in range(0, height):
+        for y in range(0, width):
+            if (image[x,y][0] < image[x,y][2]):
+                image[x,y] = (0,0,0)
+    return image
+    # return cv2.cvtColor(image, cv2.COLOR_YCR_CB2BGR)
 
 # gets the min and max values for the spectrum
 def retrieve_min_max_values(image):
@@ -258,21 +275,29 @@ def main():
     img2 = imread_colour(img_name)
 
     img = cv2.imread(img_name)
+    my_image = loop_pixels(img)
+    cv2.imwrite("Ena.jpg", my_image)
+    # cv2.imshow('lab_image', my_image)
+    # cv2.waitKey(0)
+    # np.concat(1, 2)
+    return 0
+
     retrieve_min_max_values(cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB))
-    # max = np.max(img[0])
-    # print(max)
-    get_image_size(img)
     lab_image = rgb_to_lab(img.copy())
+    retrieve_min_max_values(lab_image)
+    cv2.imshow('lab_image', lab_image)
+    cv2.waitKey(0)
+    # detect_fire(lab_image, 'lab')
     hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
  
     ycbcr_image = rgcYcbcr(img)
+    mean = np.mean(ycbcr_image[0])
+    print('the mean is = ', mean)
 
     
 
     detect_fire(hsv_img)
-    detect_fire(ycbcr_image, 'ycc')
-
-
+    detect_fire(img, 'ycc')
     # sobel_function(img)
     # spectrum = max_rgb_filter(img)
 
