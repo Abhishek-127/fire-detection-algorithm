@@ -161,35 +161,13 @@ def show_3d_plot(img, hsv_img):
     axis.set_zlabel("Value")
     plt.show()
 
-def sobel_function(image):
-    window_name = ('Sobel Demo - Simple Edge Detector')
-    scale = 1
-    delta = 0
-    ddepth = cv2.CV_16S
-     
-    src = cv2.GaussianBlur(image, (3, 3), 0)
-     
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    grad_x = cv2.Sobel(gray, ddepth, 1, 0, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
-    # Gradient-Y
-    # grad_y = cv2.Scharr(gray,ddepth,0,1)
-    grad_y = cv2.Sobel(gray, ddepth, 0, 1, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
-
-    abs_grad_x = cv2.convertScaleAbs(grad_x)
-    abs_grad_y = cv2.convertScaleAbs(grad_y)
-
-    grad = cv2.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
-        
-    cv2.imshow(window_name, grad)
-    cv2.waitKey(0)
 """
 
 """
 def detect_hsv_spectrum_fire(image):
     blur = cv2.GaussianBlur(image, (21, 21), 0)
     lower = [20, 35, 100]
-    upper = [35, 253, 253]
+    upper = [35, 255, 255]
     hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
 
     lower = np.array(lower, dtype="uint8")
@@ -256,14 +234,16 @@ def detect_fire(image, img_mode = 'hsv'):
 
     print(red)
 
-    im_size = get_image_size(image)
-    ratio = float(cv2.countNonZero(mask))/float(im_size)
+    im_size = get_image_size(image) * 0.66
+    ratio = float(red)/float(im_size)
     print('pixel percentage:', np.round(ratio*100, 2))
     return red
 
 def get_image_size(image):
-    height = np.size(image, 0)
-    width = np.size(image, 1)
+    # height = np.size(image, 0)
+    # width = np.size(image, 1)
+    height = image.shape[0]
+    width = image.shape[1]
     size = width * height
     print(size)
     return size
@@ -315,6 +295,8 @@ def rule1(image):
     display_image(R1_image)
     return R1_image, pixel
 
+"""
+"""
 def rule2(image, overall_image):
     R2_image = image.copy()
     Ymean, crMean, c, s = retrieve_mean_ycc(R2_image)
@@ -332,7 +314,8 @@ def rule2(image, overall_image):
     display_image(R2_image)
     print('count of fire pixels = ', pixel)
     return R2_image, pixel
-
+"""
+"""
 def rule3(image):
     R3_image = image.copy()
 
@@ -349,7 +332,8 @@ def rule3(image):
     display_image(R3_image)
     print('count in 3 = ', pixel)
     return R3_image,  pixel
-
+"""
+"""
 def rule4(image, input_image):
     R4_image = image.copy()
 
@@ -424,19 +408,26 @@ def analyze_ycc_results(p1, p2, p3, p4):
 def analyze_hsv_results(original_image, num_fire_pixels):
     is_fire = False
     percentage_fire = return_percentage_fire(original_image, num_fire_pixels)
+    percentage_fire = percentage_fire / 0.667
     print('percentage fire hsv = ', percentage_fire)
     if percentage_fire >= 10:
         is_fire = True
 
     return is_fire
 
-def final_analysis(is_hsv_fire, is_ycc_fire, p1 = 0, hsv = 0):
+def final_analysis(is_hsv_fire, is_ycc_fire, p1 = 0, hsv = 0, p3 = 0):
     if is_hsv_fire == True and is_ycc_fire == True:
         is_fire = True
     else:
         is_fire = False
     
     if p1 > 60 and hsv > 5:
+        is_fire = True
+    
+    if p1 > 70:
+        is_fire = True
+
+    if p3 > 1:
         is_fire = True
 
     return is_fire 
@@ -452,20 +443,22 @@ def main():
     img2 = imread_colour(img_name)
 
     img = cv2.imread(img_name)
+
     hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
-    detect_hsv_spectrum_fire(hsv_img)
+    # detect_fire(hsv_img)
+    # return 0
+    # detect_hsv_spectrum_fire(hsv_img)
 
     retrieve_min_max_values(cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB))
-    lab_image = rgb_to_lab(img.copy())
-    retrieve_min_max_values(lab_image)
+    # lab_image = rgb_to_lab(img.copy())
+    # retrieve_min_max_values(lab_image)
     # cv2.imshow('lab_image', lab_image)
     # cv2.waitKey(0)
     # detect_fire(lab_image, 'lab')
     
  
     ycbcr_image = rgcYcbcr(img)
-    mean = retrieve_mean_ycc(ycbcr_image)
-    print('the mean is = ', mean)
+
     R1, r1_pix = rule1(ycbcr_image)
     R2, r2_pix = rule2(R1, ycbcr_image)
     R3, r3_pix = rule3(ycbcr_image)
@@ -486,7 +479,7 @@ def main():
     percentage_hsv = return_percentage_fire(hsv_img, hsv_pix)
     is_hsv_fire = analyze_hsv_results(hsv_img, hsv_pix)
     print('hsv fire detected = ', is_hsv_fire)
-    print('The final result is ', final_analysis(is_hsv_fire, analyze_ycc_results(p1, p2, p3, p4), p2, percentage_hsv))
+    print('The final result is ', final_analysis(is_hsv_fire, analyze_ycc_results(p1, p2, p3, p4), p2, percentage_hsv, p3))
     return 0
     
 
