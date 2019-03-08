@@ -197,7 +197,7 @@ def detect_hsv_spectrum_fire(image):
     # plt.show()
  
     output = cv2.bitwise_and(image, hsv, mask=mask)
-    display_image(output, 'fck', True, 'ab.jpg')
+    display_image(output, 'hsv', True, 'ab.jpg')
     return red
 
 def detect_fire(image, img_mode = 'hsv'):
@@ -307,7 +307,7 @@ def rule1(image):
             else:
                 R1_image[x,y] = [0, 0, 0]
 
-    display_image(R1_image)
+    display_image(R1_image, 'r1')
     return R1_image, pixel
 
 """
@@ -337,7 +337,7 @@ def rule2(image, overall_image):
                 pixel = pixel + 1
             else:
                 R2_image[x, y] = [0, 0, 0]
-    display_image(R2_image)
+    display_image(R2_image, 'r2')
     print('count of fire pixels = ', pixel)
     return R2_image, pixel
 
@@ -366,7 +366,7 @@ def rule3(image, rgb = ''):
             else:
                 R3_image[x, y] = [0, 0, 0]
 
-    display_image(R3_image)
+    display_image(R3_image, 'r3')
     print('count in 3 = ', pixel)
     return R3_image,  pixel
 
@@ -399,7 +399,7 @@ def rule4(image, input_image):
                 pixel += 1
             else:
                 R4_image[x, y] = [0, 0, 0]
-    display_image(R4_image)
+    display_image(R4_image, 'r4')
     return R4_image, pixel
 
 def lab_rule1(lab_image):
@@ -537,10 +537,11 @@ image has fire or not
 """
 def perform_fire_detection(image_name):
     is_fire = False
+    hsv_fire = False
     # reads in the image
     image = cv2.imread(image_name)
     # converts the image in HSV for processing
-    hsv_image = cv2.cvtColor(image.copy(), cv2.COLOR_RGB2HSV)
+    hsv_image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2HSV)
     ycrcb_image = rgcYcbcr(image.copy())
 
     hsv_pix = detect_hsv_spectrum_fire(hsv_image)
@@ -549,7 +550,7 @@ def perform_fire_detection(image_name):
 
     ycrcb_image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2YCR_CB)
     
-    if(percentage_hsv > 8):
+    if(percentage_hsv >= 9):
         hsv_fire = True
 
     R1, r1_pix = rule1(ycrcb_image)
@@ -561,6 +562,7 @@ def perform_fire_detection(image_name):
     r2_percentage = return_percentage_fire(R2, r2_pix)
     r3_percentage = return_percentage_fire(R3, r3_pix)
     r4_percentage = return_percentage_fire(R4, r4_pix)
+
     print(r1_percentage, r2_percentage, r3_percentage, r4_percentage)
 
     R2_copy = cv2.cvtColor(R2.copy(), cv2.COLOR_YCR_CB2BGR)
@@ -568,6 +570,20 @@ def perform_fire_detection(image_name):
     hsv_pix = detect_hsv_spectrum_fire(R2_copy)
     percentage_hsv = return_percentage_fire(R2_copy, hsv_pix)
     print('final percentage = ', percentage_hsv)
+    RFinal = cv2.add(R1, R3)
+    # RFinal = cv2.add(RFinal, R3)
+    # RFinal = cv2.add(RFinal, R4)
+    display_image(RFinal, 'rfinal')
+    if (hsv_fire == True):
+        print('There is a fire')
+        is_fire = True
+    
+    # if (r3_percentage < 1 and r4_percentage < 1):
+    #     is_fire = False
+
+    if percentage_hsv < 2:
+        is_fire = False
+
     return is_fire
 
 def main():
@@ -586,7 +602,7 @@ def main():
     # lab_rule1(lab_image)
     # return 0
 
-    hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
+    hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_BGRS2HSV)
     # detect_fire(hsv_img)
     # return 0
     # detect_hsv_spectrum_fire(hsv_img)
