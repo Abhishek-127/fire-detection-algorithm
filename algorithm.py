@@ -96,7 +96,7 @@ Will also save the image if you desire
     @pre must contain a valid extension e.g. jpg
 """
 def display_image(image, image_name = 'Output', save = False, saved_name = ''):
-    # image = cv2.cvtColor(image, cv2.COLOR_YCR_CB2BGR) 
+    image = cv2.cvtColor(image, cv2.COLOR_YCR_CB2BGR) 
     cv2.imshow(image_name, image)
     cv2.waitKey(0)
 
@@ -134,7 +134,12 @@ def max_rgb_filter(image):
 	# merge the channels back together and return the image
 	return cv2.merge([B, G, R])
 
-# makes a 3d plot of the image
+
+"""
+Makes a 3d plot of the image
+@param img rgb image
+@param hsv_img image in hsv spectrum
+"""
 def show_3d_plot(img, hsv_img):
     r, g, b = cv2.split(img, hsv_img)
     fig = plt.figure()
@@ -162,7 +167,14 @@ def show_3d_plot(img, hsv_img):
     plt.show()
 
 """
-
+Implementation of the algorithm for fire detection in the  hsv spectrum
+This algorithm is based on the algorithm proposed by Wirth and Zaremba which
+is based isolating the particular range correcponding to the fire in the image
+A large set of images was examined to come up with the range of values used in this function
+The algorithm has beed modified to also calculate the number of pixels caught by the masking process
+This will later be used to  determine whether or not an image has a fire
+@param image The image to be examined
+@return red The number of red or 'fire' pixels detected in the image
 """
 def detect_hsv_spectrum_fire(image):
     blur = cv2.GaussianBlur(image, (21, 21), 0)
@@ -185,7 +197,7 @@ def detect_hsv_spectrum_fire(image):
     # plt.show()
  
     output = cv2.bitwise_and(image, hsv, mask=mask)
-    # display_image(output)
+    display_image(output, 'fck', True, 'ab.jpg')
     return red
 
 def detect_fire(image, img_mode = 'hsv'):
@@ -239,9 +251,12 @@ def detect_fire(image, img_mode = 'hsv'):
     print('pixel percentage:', np.round(ratio*100, 2))
     return red
 
+"""
+Function to retrieve the size of an image
+@param image The image whose size needs to be determined
+@return size The size of the image in pixels
+"""
 def get_image_size(image):
-    # height = np.size(image, 0)
-    # width = np.size(image, 1)
     height = image.shape[0]
     width = image.shape[1]
     size = width * height
@@ -296,17 +311,28 @@ def rule1(image):
     return R1_image, pixel
 
 """
+Flame region is the brightest region in the scene. We can assume that the
+red chrominance (Cr) in th fire region will be more
+This algorithm uses the values of the mean Y as well as mean Cr of the original image as
+benchmark to filter out those pixels that do not satisfy the that rule
+Rule 2 is applied on the pixels that have satisfied rule 1
+@param image The image R1 from the previous step: This image has been filtered once and the 
+    overall fire region has been indentified. 
+    This will further remove the pixels in the non-fire region as they will not satisfy the condition
+@overall_image The original image
+@return R2_image Processed image after the filter has been applied
+@return pixel The number of non-fire pixels in the image
 """
 def rule2(image, overall_image):
     R2_image = image.copy()
-    Ymean, crMean, c, s = retrieve_mean_ycc(R2_image)
+    Ymean, crMean, c, s = retrieve_mean_ycc(overall_image.copy())
 
     height = image.shape[0]
     width = image.shape[1]
     pixel = 0
     for x in range(0, height):
         for y in range(0, width):
-            if (image[x, y][0] > Ymean) and (image[x,y][1] > crMean):
+            if (overall_image[x, y][0] > Ymean) and (overall_image[x,y][1] > crMean):
                 R2_image[x, y] = image[x, y]
                 pixel = pixel + 1
             else:
@@ -314,9 +340,19 @@ def rule2(image, overall_image):
     display_image(R2_image)
     print('count of fire pixels = ', pixel)
     return R2_image, pixel
+
 """
+Rule 3 is meant to identify the high temperature centre of the fire
+Since the fire is the brightest at the centre, it will be almost white in color
+This will help in identifying those regions
+The idea is that Luminance Y will be greater that red chrominance and the blue Chrominance
+Cb will be greater that Y. Based on these assumptions a filter will be applied on the image
+to isolate the bright fire centre
+@param image The image to be tested in YCrCb spectrum
+@return R3_image The image will the filter applied to it
+@return pixel the number of pixels that are super bright (satisfy this coondition)
 """
-def rule3(image):
+def rule3(image, rgb = ''):
     R3_image = image.copy()
 
     height = image.shape[0]
@@ -324,15 +360,27 @@ def rule3(image):
     pixel = 0
     for x in range(0, height):
         for y in range(0, width):
-            if(image[x, y][2] >= image[x, y][0]) and (image[x,y][0] > image[x,y][1]):
-                R3_image[x, y] = image[x, y]
+            if(image[x, y][2] >= image[x, y][0] > image[x, y][1]):
                 pixel = pixel + 1
+                R3_image[x,y] = image[x, y]
             else:
                 R3_image[x, y] = [0, 0, 0]
+
     display_image(R3_image)
     print('count in 3 = ', pixel)
     return R3_image,  pixel
+
 """
+While the image is being segmented based on luminance, some of the white colored regions
+like smoke and cloud will be segmented from the input image
+Rule 4 is meant to overcome this. The texture of the fire  region will also be incorporated.
+The fire and non fire like clouds have different textures.
+The red chrominance will be less than the standard deviation of the red chrominance
+@param image The resulting image after Rule 3
+@param input_image The original image in YCrCb spectrum that will be used to get the statistical
+    data required to apply the filter.
+@return R4_image The image after the filter has been applied
+@return pixel All the pixels that satisfy Rule 4
 """
 def rule4(image, input_image):
     R4_image = image.copy()
@@ -342,13 +390,11 @@ def rule4(image, input_image):
 
     height = image.shape[0]
     width = image.shape[1]
-    M = cv2.mean(input_image)
-    Cr = M[1]
     pixel = 0
 
     for x in range(0, height):
         for y in range(0, width):
-            if(Cr < (tau * cr_std)):
+            if(input_image[x,y][1] < (tau * cr_std)):
                 R4_image[x, y] = image[x, y]
                 pixel += 1
             else:
@@ -356,15 +402,42 @@ def rule4(image, input_image):
     display_image(R4_image)
     return R4_image, pixel
 
-def loop_pixels(image):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
-    height = image.shape[0]
-    width = image.shape[1]
+def lab_rule1(lab_image):
+    R1 = lab_image.copy()
+    R2 = lab_image.copy()
+    R3 = lab_image.copy()
+    R4 = lab_image.copy()
+    Lmean, AMean, BMean, lab_std = retrieve_mean_ycc(lab_image)
+    height = lab_image.shape[0]
+    width = lab_image.shape[1]
+
     for x in range(0, height):
         for y in range(0, width):
-            if (image[x,y][0] < image[x,y][2]):
-                image[x,y] = (0,0,0)
-    return image
+            if(lab_image[x, y][0] >= Lmean):
+                R1[x, y] = [1, 1, 1]
+            else:
+                R1[x, y] = [0, 0, 0]
+            
+            if(lab_image[x, y][1] >= AMean):
+                R2[x, y] = [1, 1, 1]
+            else:
+                R2[x, y] = [0, 0, 0]
+
+            if(lab_image[x, y][2] >= BMean):
+                R3[x, y] = [1, 1, 1]
+            else:
+                R3[x, y] = [0, 0, 0]
+
+            if(lab_image[x, y][2] >= lab_image[x, y][1]):
+                R4[x, y] = [1, 1, 1]
+            else:
+                R4[x, y] = [0, 0, 0]
+    display_image(R1)
+    display_image(R2)
+    display_image(R3)
+    display_image(R4)
+    return R1, R2, R3, R4
+
 
 """
 Small helper function that helps retrieve the min and max values
@@ -386,6 +459,16 @@ def retrieve_min_max_values(image):
     print('cr Min = ', crMin)
     print('cr Max = ', crMax)
 
+    return YMax, YMin, cbMin, cbMax, crMin, crMax
+
+"""
+Function to return the percentae of fire pixels based on the number of detected
+    fire pixels and the original image
+@param original The original image that is being processed
+@param num_fire_pixels The number of fire pixels that have been detected based on the
+    algorithm used
+@return perentage The percentage of the image that is on Fire
+"""
 def return_percentage_fire(original_image, num_fire_pixels):
     if num_fire_pixels == 0:
         return 0
@@ -395,6 +478,10 @@ def return_percentage_fire(original_image, num_fire_pixels):
 
     return percentage
 
+"""
+Function that analyzes the results after the set of rules to process YCrCb images
+have been applied
+"""
 def analyze_ycc_results(p1, p2, p3, p4):
     is_fire = False
     if(p1 > 7 and p2 > 7):
@@ -404,7 +491,14 @@ def analyze_ycc_results(p1, p2, p3, p4):
         is_fire = True
 
     return is_fire
-
+"""
+Analyzes the results after the flame detection algorithm usign the HSV spectrum have been
+used. Based on the percentage of pixels that are fire pixels, it will determine whether or not
+the image contains a fire
+@param original_image The original image that is being processed
+@param num_fire_pixels The number of pixels identified as fire in the image
+@return is_fire Boolean indicating whether or not an image has fire
+"""
 def analyze_hsv_results(original_image, num_fire_pixels):
     is_fire = False
     percentage_fire = return_percentage_fire(original_image, num_fire_pixels)
@@ -415,6 +509,8 @@ def analyze_hsv_results(original_image, num_fire_pixels):
 
     return is_fire
 
+"""
+"""
 def final_analysis(is_hsv_fire, is_ycc_fire, p1 = 0, hsv = 0, p3 = 0):
     if is_hsv_fire == True and is_ycc_fire == True:
         is_fire = True
@@ -432,6 +528,48 @@ def final_analysis(is_hsv_fire, is_ycc_fire, p1 = 0, hsv = 0, p3 = 0):
 
     return is_fire 
 
+"""
+Function that will handle the bulk of the task. This function handles all the function
+calls to the different functions and will ultimately return the verdict on whether or not an
+image has fire or not
+@param image_name The name of the image that needs to be processed.
+
+"""
+def perform_fire_detection(image_name):
+    is_fire = False
+    # reads in the image
+    image = cv2.imread(image_name)
+    # converts the image in HSV for processing
+    hsv_image = cv2.cvtColor(image.copy(), cv2.COLOR_RGB2HSV)
+    ycrcb_image = rgcYcbcr(image.copy())
+
+    hsv_pix = detect_hsv_spectrum_fire(hsv_image)
+    percentage_hsv = return_percentage_fire(hsv_image, hsv_pix)
+    print('percentage is ', percentage_hsv)
+
+    ycrcb_image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2YCR_CB)
+    
+    if(percentage_hsv > 8):
+        hsv_fire = True
+
+    R1, r1_pix = rule1(ycrcb_image)
+    R2, r2_pix = rule2(R1, ycrcb_image)
+    R3, r3_pix = rule3(ycrcb_image)
+    R4, r4_pix = rule4(R3, ycrcb_image)
+
+    r1_percentage = return_percentage_fire(R1, r1_pix)
+    r2_percentage = return_percentage_fire(R2, r2_pix)
+    r3_percentage = return_percentage_fire(R3, r3_pix)
+    r4_percentage = return_percentage_fire(R4, r4_pix)
+    print(r1_percentage, r2_percentage, r3_percentage, r4_percentage)
+
+    R2_copy = cv2.cvtColor(R2.copy(), cv2.COLOR_YCR_CB2BGR)
+    R2_copy = cv2.cvtColor(R2_copy, cv2.COLOR_BGR2HSV)
+    hsv_pix = detect_hsv_spectrum_fire(R2_copy)
+    percentage_hsv = return_percentage_fire(R2_copy, hsv_pix)
+    print('final percentage = ', percentage_hsv)
+    return is_fire
+
 def main():
     if len(sys.argv) < 1:
         print ('Not enough parameters')
@@ -439,10 +577,14 @@ def main():
         return -1
     
     img_name = sys.argv[1]
-
+    perform_fire_detection(img_name)
+    return 0
     img2 = imread_colour(img_name)
 
     img = cv2.imread(img_name)
+    lab_image = rgb_to_lab(img.copy())
+    # lab_rule1(lab_image)
+    # return 0
 
     hsv_img = cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_RGB2HSV)
     # detect_fire(hsv_img)
@@ -450,14 +592,14 @@ def main():
     # detect_hsv_spectrum_fire(hsv_img)
 
     retrieve_min_max_values(cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB))
-    # lab_image = rgb_to_lab(img.copy())
+    
     # retrieve_min_max_values(lab_image)
     # cv2.imshow('lab_image', lab_image)
     # cv2.waitKey(0)
     # detect_fire(lab_image, 'lab')
     
  
-    ycbcr_image = rgcYcbcr(img)
+    ycbcr_image = rgcYcbcr(img.copy())
 
     R1, r1_pix = rule1(ycbcr_image)
     R2, r2_pix = rule2(R1, ycbcr_image)
@@ -471,7 +613,7 @@ def main():
 
     print('percentage fire', p1, p2, p3, p4)
     print('detected fire ycc = ', analyze_ycc_results(p1, p2, p3, p4))
-    final = cv2.add(R2, R4)
+    final = cv2.add(R1, R3)
     display_image(final)
 
     # hsv
