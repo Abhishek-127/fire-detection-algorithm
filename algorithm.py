@@ -64,8 +64,6 @@ def imwrite_gray(fname,img):
 def rgcYcbcr(image):
     img = image.copy()
     imgYCC = cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB)
-    cv2.imshow('my_image', imgYCC)
-    cv2.waitKey(0)
     return imgYCC
 
 def rgb_to_ycbcr(img):
@@ -178,8 +176,6 @@ This will later be used to  determine whether or not an image has a fire
 """
 def detect_hsv_spectrum_fire(image):
     blur = cv2.GaussianBlur(image, (21, 21), 0)
-    # lower = [20, 35, 100]
-    # upper = [35, 255, 255]
     lower = [20, 150, 200]
     upper = [35, 255, 255]
 
@@ -189,78 +185,23 @@ def detect_hsv_spectrum_fire(image):
     upper = np.array(upper, dtype="uint8")
 
     mask = cv2.inRange(hsv, lower, upper)
-    result = cv2.bitwise_and(image, image, mask=mask)
-    cv2.imshow('maaaaaaa', mask)
+    cv2.imshow('mask for hsv spectrum', mask)
     cv2.waitKey(0)
+    result = cv2.bitwise_and(image, image, mask=mask)
     red = cv2.countNonZero(mask)
     s = mask.shape[0] * mask.shape[1]
     per = float(red)/float(s)
     per = per * 100
-    print('aaaaaaaaa', per)
-    cv2.imwrite('mask.jpg', mask)
 
     result = cv2.bitwise_and(image, image, mask=mask)
-    cv2.imwrite('result.jpg', result)
+    cv2.imshow('HSV result', result)
+    cv2.waitKey(0)
     output = cv2.bitwise_and(image, hsv, mask=mask)
     out = cv2.countNonZero(output.flatten())
     size = image.shape[0] * image.shape[1]
     percentage = (float(out)/float(size)) * 100 
-    print('perrrrrr = ', percentage)
     cv2.imwrite('output.jpg', output)
-
-    display_image(output, 'hsv', True, 'ab.jpg')
     return percentage
-
-def detect_fire(image, img_mode = 'hsv'):
-    blur = cv2.GaussianBlur(image, (21, 21), 0)
-
-    # lower = [18, 50, 50]
-    # upper = [35, 255, 255]
-    if img_mode == 'hsv':
-        # lower = [18, 50, 50]
-        # upper = [35, 255, 255]
-        lower = [25, 35, 100]
-        upper = [68, 255, 255]
-        hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
-        # hsv = image
-    elif img_mode == 'lab':
-        lower = [-40, -40, -40]
-        upper = [80, 84, 90]
-        # hsv = image
-        #hsv = cv2.cvtColor(blur, cv2.)
-    else:
-        # lower = [68, 67, 66]
-        # upper = [202, 202, 255]
-        lower = [50, 50, 50]
-        upper = [254, 253, 253]
-        hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2YCR_CB)
-    
-    lower = np.array(lower, dtype="uint8")
-    upper = np.array(upper, dtype="uint8")
-
-    mask = cv2.inRange(hsv, lower, upper)
-    
-    plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
-    plt.show()
-    result = cv2.bitwise_and(image, image, mask=mask)
-    plt.imshow(result)
-    plt.show()
- 
-    output = cv2.bitwise_and(image, hsv, mask=mask)
-
-    red = cv2.countNonZero(mask)
-    if red > 11000:
-        print("Fire detected")
-    else:
-        print("No fire")
-
-
-    print(red)
-
-    im_size = get_image_size(image) * 0.66
-    ratio = float(red)/float(im_size)
-    print('pixel percentage:', np.round(ratio*100, 2))
-    return red
 
 """
 Function to retrieve the size of an image
@@ -315,7 +256,7 @@ def rule1(image):
                 pixel += 1
             else:
                 R1_image[x,y] = [16, 128, 128]
-    print('r1 fire pixels = ', float(pixel)/float(height*width)*100)
+    # print('r1 fire pixels = ', float(pixel)/float(height*width)*100)
     display_image(R1_image, 'r1')
     return R1_image, pixel
 
@@ -347,7 +288,7 @@ def rule2(image, overall_image):
             else:
                 R2_image[x, y] = [16, 128, 128]
     display_image(R2_image, 'r2')
-    print('r2 fire pixels = ', float(pixel)/float(height*width)*100)
+    # print('r2 fire pixels = ', float(pixel)/float(height*width)*100)
     return R2_image, pixel
 
 """
@@ -376,7 +317,7 @@ def rule3(image, rgb = ''):
                 R3_image[x, y] = [16, 128, 128]
 
     display_image(R3_image, 'r3')
-    print('r3 fire pixels = ', float(pixel)/float(height*width)*100)
+    # print('r3 fire pixels = ', float(pixel)/float(height*width)*100)
     return R3_image,  pixel
 
 """
@@ -410,7 +351,7 @@ def rule4(image, input_image):
                 R4_image[x, y] = [16, 128, 128]
 
     display_image(R4_image, 'r4')
-    print('r4 fire pixels = ', float(pixel)/float(height*width)*100)
+    # print('r4 fire pixels = ', float(pixel)/float(height*width)*100)
     return R4_image, pixel
 
 def lab_rule1(lab_image):
@@ -542,16 +483,13 @@ def final_analysis(hsv_percentage, r1, r2, r3, r4, second_percentage, r1_i, r2_i
     #   forest fire images that typically have lots of smoke
     if(r3 > 4.0 and r1 > 0.0 and r2 > 0.0):
         is_fire = True
-        
-        # return is_fire
+        display_image( r1_i, 'Pre segmented fire region')
+        display_image( r2_i, 'segmented fire region')
     
     # check for normal fires here
     if(hsv_percentage > 5 and second_percentage > 0 and r2 > 7 and r1 > 15):
         is_fire = True
     
-    print('is there a fire = ', is_fire)
-
-
     return is_fire 
 
 """
@@ -586,7 +524,6 @@ def perform_fire_detection(image_name):
     r3_percentage = return_percentage_fire(R3, r3_pix)
     r4_percentage = return_percentage_fire(R4, r4_pix)
 
-    print('wazzzaaa',r1_percentage, r2_percentage, r3_percentage, r4_percentage)
     i = cv2.cvtColor(R2.copy(), cv2.COLOR_YCR_CB2BGR)
     i = cv2.cvtColor(i.copy(), cv2.COLOR_BGR2HSV)
     second_percentage = detect_hsv_spectrum_fire(i)
@@ -613,6 +550,11 @@ def main():
     
     img_name = sys.argv[1]
     is_fire = perform_fire_detection(img_name)
+    if is_fire:
+        print('Fire Detected!!')
+    else:
+        print('No fire detected')
+    
     return 0
 
 if __name__ == '__main__':
