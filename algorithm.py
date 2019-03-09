@@ -178,7 +178,9 @@ This will later be used to  determine whether or not an image has a fire
 """
 def detect_hsv_spectrum_fire(image):
     blur = cv2.GaussianBlur(image, (21, 21), 0)
-    lower = [20, 35, 100]
+    # lower = [20, 35, 100]
+    # upper = [35, 255, 255]
+    lower = [20, 100, 200]
     upper = [35, 255, 255]
     hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
 
@@ -187,16 +189,23 @@ def detect_hsv_spectrum_fire(image):
 
     mask = cv2.inRange(hsv, lower, upper)
     result = cv2.bitwise_and(image, image, mask=mask)
-
+    cv2.imshow('maaaaaaa', mask)
+    cv2.waitKey(0)
     red = cv2.countNonZero(mask)
+    s = mask.shape[0] * mask.shape[1]
+    per = float(red)/float(s)
+    per = per * 100
+    print('aaaaaaaaa', per)
+    cv2.imwrite('mask.jpg', mask)
 
-    # plt.imshow(mask, cmap='gray')   # this colormap will display in black / white
-    # plt.show()
     result = cv2.bitwise_and(image, image, mask=mask)
-    # plt.imshow(result)
-    # plt.show()
- 
+    cv2.imwrite('result.jpg', result)
     output = cv2.bitwise_and(image, hsv, mask=mask)
+    out = cv2.countNonZero(output.flatten())
+    size = image.shape[0] * image.shape[1]
+    print('perrrrrr = ', (float(out)/float(size))*100 )
+    cv2.imwrite('output.jpg', output)
+
     display_image(output, 'hsv', True, 'ab.jpg')
     return red
 
@@ -208,8 +217,8 @@ def detect_fire(image, img_mode = 'hsv'):
     if img_mode == 'hsv':
         # lower = [18, 50, 50]
         # upper = [35, 255, 255]
-        lower = [20, 35, 100]
-        upper = [35, 255, 255]
+        lower = [25, 35, 100]
+        upper = [68, 255, 255]
         hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
         # hsv = image
     elif img_mode == 'lab':
@@ -278,10 +287,8 @@ def retrieve_mean_ycc(ycrcb_image):
 
     # getting the standard dev
     means, stds = cv2.meanStdDev(ycrcb_image)
-    cr_std = stds[1][0]
-    print('mean chrominancer is ', cr_std)
-    print(stds)
-
+    cr_std = stds[1]
+    
     return Ymean, CrMean, CbMean, cr_std
 
 """
@@ -305,8 +312,8 @@ def rule1(image):
                 R1_image[x, y] = image[x,y]
                 pixel += 1
             else:
-                R1_image[x,y] = [0, 0, 0]
-
+                R1_image[x,y] = [16, 128, 128]
+    print('r1 fire pixels = ', float(pixel)/float(height*width)*100)
     display_image(R1_image, 'r1')
     return R1_image, pixel
 
@@ -332,13 +339,13 @@ def rule2(image, overall_image):
     pixel = 0
     for x in range(0, height):
         for y in range(0, width):
-            if (overall_image[x, y][0] > Ymean) and (overall_image[x,y][1] > crMean):
+            if (image[x, y][0] > Ymean) and (image[x,y][1] > crMean):
                 R2_image[x, y] = image[x, y]
                 pixel = pixel + 1
             else:
-                R2_image[x, y] = [0, 0, 0]
+                R2_image[x, y] = [16, 128, 128]
     display_image(R2_image, 'r2')
-    print('count of fire pixels = ', pixel)
+    print('r2 fire pixels = ', float(pixel)/float(height*width)*100)
     return R2_image, pixel
 
 """
@@ -364,10 +371,10 @@ def rule3(image, rgb = ''):
                 pixel = pixel + 1
                 R3_image[x,y] = image[x, y]
             else:
-                R3_image[x, y] = [0, 0, 0]
+                R3_image[x, y] = [16, 128, 128]
 
     display_image(R3_image, 'r3')
-    print('count in 3 = ', pixel)
+    print('r3 fire pixels = ', float(pixel)/float(height*width)*100)
     return R3_image,  pixel
 
 """
@@ -385,7 +392,7 @@ The red chrominance will be less than the standard deviation of the red chromina
 def rule4(image, input_image):
     R4_image = image.copy()
 
-    Ymean, CrMean, CbMean, cr_std = retrieve_mean_ycc(input_image)
+    Ymean, CrMean, CbMean, cr_std = retrieve_mean_ycc(image)
     tau = 7.4
 
     height = image.shape[0]
@@ -394,12 +401,14 @@ def rule4(image, input_image):
 
     for x in range(0, height):
         for y in range(0, width):
-            if(input_image[x,y][1] < (tau * cr_std)):
+            if(image[x,y][1] < (tau * cr_std)):
                 R4_image[x, y] = image[x, y]
                 pixel += 1
             else:
-                R4_image[x, y] = [0, 0, 0]
+                R4_image[x, y] = [16, 128, 128]
+
     display_image(R4_image, 'r4')
+    print('r4 fire pixels = ', float(pixel)/float(height*width)*100)
     return R4_image, pixel
 
 def lab_rule1(lab_image):
@@ -547,9 +556,8 @@ def perform_fire_detection(image_name):
     hsv_pix = detect_hsv_spectrum_fire(hsv_image)
     percentage_hsv = return_percentage_fire(hsv_image, hsv_pix)
     print('percentage is ', percentage_hsv)
-
+    return 0
     ycrcb_image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2YCR_CB)
-    
     if(percentage_hsv >= 9):
         hsv_fire = True
 
